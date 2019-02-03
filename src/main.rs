@@ -1,10 +1,10 @@
 use std::rc::Rc;
 use std::cell::RefCell;
 
-use std::cmp::{Ord, Eq, PartialEq, Ordering};
+use std::cmp::{Ord, Ordering};
 
 fn main() {
-    let mut tree = Tree::new();
+    let mut tree: Tree<i64, i64> = Tree::new();
     assert_eq!(tree.size, 0);
     assert_eq!(tree.insert(0, 0), None);
     assert_eq!(tree.insert(0, 0), Some(0));
@@ -12,18 +12,18 @@ fn main() {
     assert_eq!(tree.insert(1, 20), Some(23));
 }
 
-struct Tree {
+struct Tree<T: Eq + Ord, V> {
   size: usize,
-  root: Option<Rc<RefCell<TreeNode>>>
+  root: Option<Rc<RefCell<TreeNode<T, V>>>>
 }
 
-impl Tree {
+impl<T: Ord, V> Tree<T, V> {
   fn new() -> Self {
     Tree{size: 0, root: None}
   }
 
-  fn insert(&mut self, key: i64, value: i64) -> Option<i64> {
-    let mut new_node = TreeNode::new(key, value);
+  fn insert(&mut self, key: T, value: V) -> Option<V> {
+    let new_node = TreeNode::new(key, value);
 
     match &self.root {
       None => {
@@ -37,8 +37,8 @@ impl Tree {
     }
   }
 
-  fn inner_insert(&mut self, mut new_node: TreeNode, parent_ref: Rc<RefCell<TreeNode>>) -> Option<i64> {
-    let mut parent = parent_ref.borrow_mut();
+  fn inner_insert(&mut self, mut new_node: TreeNode<T, V>, parent_ref: Rc<RefCell<TreeNode<T, V>>>) -> Option<V> {
+    let mut parent = &mut parent_ref.borrow_mut();
     match parent.key.cmp(&new_node.key) {
       Ordering::Less => {
 
@@ -71,27 +71,24 @@ impl Tree {
         }
       },
       Ordering::Equal => {
-
-        let tmp = parent.value;
-        parent.value = new_node.value;
-        Some(tmp)
+        Some(std::mem::replace( parent.value, new_node.value))
       }
     }
   }
 }
 
 #[derive(Debug)]
-struct TreeNode {
-  key: i64,
-  value: i64,
-  parent: Option<Rc<RefCell<TreeNode>>>,
-  right: Option<Rc<RefCell<TreeNode>>>,
-  left: Option<Rc<RefCell<TreeNode>>>
+struct TreeNode<T: Eq + Ord, V> {
+  key: T,
+  value: V,
+  parent: Option<Rc<RefCell<TreeNode<T, V>>>>,
+  right: Option<Rc<RefCell<TreeNode<T, V>>>>,
+  left: Option<Rc<RefCell<TreeNode<T, V>>>>
 }
 
 
-impl TreeNode {
-  fn new(key: i64, value: i64) -> Self {
+impl<T: Ord, V> TreeNode<T, V> {
+  fn new(key: T, value: V) -> Self {
     TreeNode{key: key, value: value, parent: None, left: None, right: None}
   }
 }
