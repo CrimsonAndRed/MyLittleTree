@@ -71,7 +71,7 @@ impl<T: Ord, V> Tree<T, V> {
         }
       },
       Ordering::Equal => {
-        Some(std::mem::replace( parent.value, new_node.value))
+        Some(std::mem::replace(&mut parent.value, new_node.value))
       }
     }
   }
