@@ -27,7 +27,6 @@ fn main() {
     paper_tree.insert(115, 115);
     paper_tree.insert(300, 300);
 
-
     println!("{}", paper_tree.least_node().unwrap().borrow().key);
     println!("{}", tree.least_node().unwrap().borrow().key);
 
@@ -130,7 +129,7 @@ impl<K: Ord, V> Tree<K, V> {
                 Some(self.least_node_r(root))
 
                 // This iterative code does not work :(
-                
+
                 // let mut ref_node: &Rc<RefCell<TreeNode<K, V>>> = &root;
                 // while let Some(lq) = ref_node.borrow().left {
                 // 	ref_node = lq;
