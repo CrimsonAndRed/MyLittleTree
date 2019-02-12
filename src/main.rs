@@ -18,6 +18,9 @@ fn main() {
     let mut paper_tree: Tree<i64, i64> = Tree::new();
     paper_tree.insert(100, 100);
     paper_tree.insert(50, 50);
+
+    let x1 = paper_tree.find_node(&101);
+    assert!(x1.is_none());
     paper_tree.insert(10, 10);
     paper_tree.insert(70, 70);
     paper_tree.insert(60, 60);
@@ -28,7 +31,7 @@ fn main() {
     paper_tree.insert(300, 300);
 
     println!("{}", paper_tree.least_node().unwrap().borrow().key);
-    println!("{}", tree.least_node().unwrap().borrow().key);
+//    println!("{}", tree.least_node().unwrap().borrow().key);
 
     for x in paper_tree {
         println!("{} -> {}", x.borrow().key, x.borrow().value);
@@ -67,7 +70,7 @@ impl<K: Ord, V> Tree<K, V> {
         parent_ref: Rc<RefCell<TreeNode<K, V>>>,
     ) -> Option<V> {
         let parent = &mut parent_ref.borrow_mut();
-        match parent.key.cmp(&new_node.key) {
+        match new_node.key.cmp(&parent.key) {
             Ordering::Less => match &parent.left {
                 None => {
                     new_node.parent = Some(Rc::clone(&parent_ref));
@@ -93,7 +96,7 @@ impl<K: Ord, V> Tree<K, V> {
     }
 
     fn iter(self) -> TreeIterator<K, V> {
-        TreeIterator { tree: self }
+        TreeIterator {current_node: self.least_node()}
     }
 
     fn find_node(&self, f: &K) -> Option<Rc<RefCell<TreeNode<K, V>>>> {
@@ -101,32 +104,15 @@ impl<K: Ord, V> Tree<K, V> {
             return None;
         }
 
-        self.find_node_r(Rc::clone(self.root.as_ref().unwrap()), f)
-    }
-
-    fn find_node_r(
-        &self,
-        node: Rc<RefCell<TreeNode<K, V>>>,
-        f: &K,
-    ) -> Option<Rc<RefCell<TreeNode<K, V>>>> {
-        match &node.borrow().key.cmp(f) {
-            Ordering::Greater => match &node.borrow().right {
-                Some(lq) => self.find_node_r(Rc::clone(lq), f),
-                None => None,
-            },
-            Ordering::Less => match &node.borrow().left {
-                Some(lq) => self.find_node_r(Rc::clone(lq), f),
-                None => None,
-            },
-            Ordering::Equal => Some(Rc::clone(&node)),
-        }
+        let root = self.root.as_ref().unwrap();
+        root.borrow().find_node_r(Rc::clone(root), f)
     }
 
     fn least_node(&self) -> Option<Rc<RefCell<TreeNode<K, V>>>> {
         match &self.root {
             None => None,
             Some(root) => {
-                Some(self.least_node_r(root))
+                Some(root.borrow().least_node_r(root))
 
                 // This iterative code does not work :(
 
@@ -138,37 +124,111 @@ impl<K: Ord, V> Tree<K, V> {
             }
         }
     }
-
-    fn least_node_r(&self, node: &Rc<RefCell<TreeNode<K, V>>>) -> Rc<RefCell<TreeNode<K, V>>> {
-        match &node.borrow().left {
-            None => Rc::clone(node),
-            Some(lq) => self.least_node_r(lq),
-        }
-    }
 }
 
 // Iteration
 struct TreeIterator<K: Ord, V> {
-    tree: Tree<K, V>,
+    current_node: Option<Rc<RefCell<TreeNode<K, V>>>>,
 }
 
-impl<K: Ord, V> TreeIterator<K, V> {}
+impl<K: Ord, V> TreeIterator<K, V> {
+
+    fn find_next(&mut self) {
+        // this was called so current_node is not None
+        let ref_curr = Rc::clone(self.current_node.as_ref().unwrap());
+        let curr = ref_curr.borrow();
+
+        // Check if we have right child
+        match &curr.right {
+            Some(lq) => {
+                // If so, get lowest from right child
+                self.current_node =  Some(lq.borrow().least_node_r(lq));
+                println!("We have right child");
+            }
+            None => {
+//                let parent = &curr.parent;
+                println!("We dont have right child");
+
+                let mut this = Rc::clone(&ref_curr);
+
+                loop {
+                    let cp = Rc::clone(&this);
+                    let parent = &cp.borrow().parent;
+
+                    if parent.is_none() {
+                        std::mem::swap(&mut self.current_node, &mut None);
+                        break;
+                    } else {
+                        let b = Rc::clone(&this);
+                        let x = b.borrow().parent_sure();
+                        let a = Rc::clone(&this);
+
+                        if a.borrow().key.cmp(&x.borrow().key) == Ordering::Greater {
+                            this = Rc::clone(&x);
+                            continue;
+                        } else {
+                            let _ = std::mem::replace(&mut self.current_node, Some(Rc::clone(&x)));
+                            break;
+                        }
+                    }
+                }
+
+                // else check if we have parent
+//                match parent {
+//                    // If so - go up while we are in right-childs branch -> first parent of left-child relation is next node
+//                    Some(p) => {
+//                        println!("We have parent");
+//
+//                        let cpble = &curr.key;
+//                        let mut cmp_ref = Rc::clone(p);
+//
+//                        while cmp_ref.borrow().parent.is_some()  {
+//                            // If childs key > parent key - it was right child -> go up
+//                            if cpble.cmp(&cmp_ref.borrow().key) == Ordering::Greater {
+//                                println!("1");
+//                                let x = &cmp_ref.borrow().parent_sure();
+//                                cmp_ref = Rc::clone(x);
+//                                continue;
+//                            } else {
+//                                println!("2");
+//
+//                                // Else childs key < parent key - next node is parent
+//                                let _ = std::mem::replace(&mut self.current_node, Some(Rc::clone(&cmp_ref)));
+//                                return;
+//                            }
+//                        }
+//
+//                        println!("I am root now from 1");
+//
+//                        // Here we come in case we were in root from its right branch
+//                        std::mem::swap(&mut self.current_node, &mut None);
+//                    }
+//                    // otherwise we dont have right child and parent -> we are root
+//                    None => {
+//                        // We are in root
+//                        println!("We dont have parent");
+//                        std::mem::swap(&mut self.current_node, &mut None);
+//                    },
+//                }
+            }
+        }
+    }
+}
 
 impl<K: Ord, V> Iterator for TreeIterator<K, V> {
     type Item = Rc<RefCell<TreeNode<K, V>>>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        // // Tree is empty
-        // if self.current_node.is_none() {
-        // 	return None;
-        // }
-        // let current_node = Rc::clone(self.current_node.as_ref().unwrap());
+        match &self.current_node {
+            None => None,
+            Some(ref lq) => {
+                let result = Rc::clone(lq);
 
-        // // Tree is not empty and we just started
-        // if prev_node.is_none() {
-        // 	if
-        // }
-        None
+                self.find_next();
+
+                Some(result)
+            }
+        }
     }
 }
 
@@ -198,6 +258,44 @@ impl<K: Ord, V> TreeNode<K, V> {
             parent: None,
             left: None,
             right: None,
+        }
+    }
+
+    fn left_sure(&self) -> Rc<RefCell<TreeNode<K, V>>> {
+        Rc::clone(self.left.as_ref().unwrap())
+    }
+
+    fn right_sure(&self) -> Rc<RefCell<TreeNode<K, V>>> {
+        Rc::clone(self.right.as_ref().unwrap())
+    }
+
+    fn parent_sure(&self) -> Rc<RefCell<TreeNode<K, V>>> {
+        Rc::clone(self.parent.as_ref().unwrap())
+    }
+
+    fn find_node_r(
+        &self,
+        myself: Rc<RefCell<TreeNode<K, V>>>,
+        f: &K,
+    ) -> Option<Rc<RefCell<TreeNode<K, V>>>> {
+        match &self.key.cmp(f) {
+            Ordering::Greater => match &self.right {
+                Some(lq) => lq.borrow().find_node_r(Rc::clone(lq), f),
+                None => None,
+            },
+            Ordering::Less => match &self.left {
+                Some(lq) => lq.borrow().find_node_r(Rc::clone(lq), f),
+                None => None,
+            },
+            Ordering::Equal => Some(myself),
+        }
+    }
+
+
+    fn least_node_r(&self, myself: &Rc<RefCell<TreeNode<K, V>>>) -> Rc<RefCell<TreeNode<K, V>>> {
+        match &self.left {
+            None => Rc::clone(myself),
+            Some(lq) => lq.borrow().least_node_r(lq),
         }
     }
 }
