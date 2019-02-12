@@ -31,7 +31,7 @@ fn main() {
     paper_tree.insert(300, 300);
 
     println!("{}", paper_tree.least_node().unwrap().borrow().key);
-//    println!("{}", tree.least_node().unwrap().borrow().key);
+    //    println!("{}", tree.least_node().unwrap().borrow().key);
 
     for x in paper_tree {
         println!("{} -> {}", x.borrow().key, x.borrow().value);
@@ -96,7 +96,9 @@ impl<K: Ord, V> Tree<K, V> {
     }
 
     fn iter(self) -> TreeIterator<K, V> {
-        TreeIterator {current_node: self.least_node()}
+        TreeIterator {
+            current_node: self.least_node(),
+        }
     }
 
     fn find_node(&self, f: &K) -> Option<Rc<RefCell<TreeNode<K, V>>>> {
@@ -132,7 +134,6 @@ struct TreeIterator<K: Ord, V> {
 }
 
 impl<K: Ord, V> TreeIterator<K, V> {
-
     fn find_next(&mut self) {
         // this was called so current_node is not None
 
@@ -144,7 +145,7 @@ impl<K: Ord, V> TreeIterator<K, V> {
         match &curr.right {
             Some(lq) => {
                 // If so, get lowest from right child
-                self.current_node =  Some(lq.borrow().least_node_r(lq));
+                self.current_node = Some(lq.borrow().least_node_r(lq));
             }
             None => {
                 // Otherwise we are going up
@@ -160,7 +161,7 @@ impl<K: Ord, V> TreeIterator<K, V> {
                             // If there was no parent than no other nodes in tree
                             std::mem::swap(&mut self.current_node, &mut None);
                             break;
-                        },
+                        }
                         Some(p) => {
                             // If there was a parent node than we have to check if this relation is left or right
                             if this.borrow().key.cmp(&p.borrow().key) == Ordering::Greater {
@@ -256,7 +257,6 @@ impl<K: Ord, V> TreeNode<K, V> {
             Ordering::Equal => Some(myself),
         }
     }
-
 
     fn least_node_r(&self, myself: &Rc<RefCell<TreeNode<K, V>>>) -> Rc<RefCell<TreeNode<K, V>>> {
         match &self.left {
