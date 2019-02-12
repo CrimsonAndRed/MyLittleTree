@@ -158,19 +158,19 @@ impl<K: Ord, V> TreeIterator<K, V> {
 
                     match &parent {
                         None => {
-                            // If there was no parent than no other nodes in tree
+                            // If there was no parent then there are no other nodes in tree
                             std::mem::swap(&mut self.current_node, &mut None);
                             break;
                         }
-                        Some(p) => {
-                            // If there was a parent node than we have to check if this relation is left or right
+                        Some(ref p) => {
+                            // If there was a parent node then we have to check if this relation is left or right
                             if this.borrow().key.cmp(&p.borrow().key) == Ordering::Greater {
-                                // If this is right child relation than we are looking higher
-                                this = Rc::clone(&p);
+                                // If this is right child relation then we are looking higher
+                                this = Rc::clone(p);
                                 continue;
                             } else {
-                                // If this is left child relation than we are in next node
-                                std::mem::swap(&mut self.current_node, &mut Some(Rc::clone(&p)));
+                                // If this is left child relation then parent is next node
+                                std::mem::swap(&mut self.current_node, &mut Some(Rc::clone(p)));
                                 break;
                             }
                         }
