@@ -33,6 +33,7 @@ fn main() {
     println!("{}", paper_tree.least_node().unwrap().borrow().key);
     //    println!("{}", tree.least_node().unwrap().borrow().key);
 
+    paper_tree.clear();
     for x in paper_tree {
         println!("{} -> {}", x.borrow().key, x.borrow().value);
     }
@@ -93,6 +94,18 @@ impl<K: Ord, V> Tree<K, V> {
             },
             Ordering::Equal => Some(std::mem::replace(&mut parent.value, new_node.value)),
         }
+    }
+
+    fn clear(&mut self) {
+        *self = Self::new();
+    }
+
+    fn len(&self) -> usize {
+        self.size
+    }
+
+    fn is_empty(&self) -> bool {
+        self.size == 0
     }
 
     fn iter(self) -> TreeIterator<K, V> {
