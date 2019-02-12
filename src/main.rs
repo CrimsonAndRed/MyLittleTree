@@ -157,14 +157,18 @@ impl<K: Ord, V> TreeIterator<K, V> {
 
                     match &parent {
                         None => {
+                            // If there was no parent than no other nodes in tree
                             std::mem::swap(&mut self.current_node, &mut None);
                             break;
                         },
                         Some(p) => {
+                            // If there was a parent node than we have to check if this relation is left or right
                             if this.borrow().key.cmp(&p.borrow().key) == Ordering::Greater {
+                                // If this is right child relation than we are looking higher
                                 this = Rc::clone(&p);
                                 continue;
                             } else {
+                                // If this is left child relation than we are in next node
                                 std::mem::swap(&mut self.current_node, &mut Some(Rc::clone(&p)));
                                 break;
                             }
@@ -179,6 +183,8 @@ impl<K: Ord, V> TreeIterator<K, V> {
 impl<K: Ord, V> Iterator for TreeIterator<K, V> {
     type Item = Rc<RefCell<TreeNode<K, V>>>;
 
+    // This iterator is a little bit odd
+    // We compute next value on the same iteration with "this" value
     fn next(&mut self) -> Option<Self::Item> {
         match &self.current_node {
             None => None,
@@ -202,7 +208,6 @@ impl<K: Ord, V> IntoIterator for Tree<K, V> {
     }
 }
 
-#[derive(Debug)]
 struct TreeNode<K: Ord, V> {
     key: K,
     value: V,
