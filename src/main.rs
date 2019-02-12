@@ -135,6 +135,8 @@ impl<K: Ord, V> TreeIterator<K, V> {
 
     fn find_next(&mut self) {
         // this was called so current_node is not None
+
+        // Copy of current node
         let ref_curr = Rc::clone(self.current_node.as_ref().unwrap());
         let curr = ref_curr.borrow();
 
@@ -145,64 +147,30 @@ impl<K: Ord, V> TreeIterator<K, V> {
                 self.current_node =  Some(lq.borrow().least_node_r(lq));
             }
             None => {
-//                let parent = &curr.parent;
-
+                // Otherwise we are going up
                 let mut this = Rc::clone(&ref_curr);
 
                 loop {
+                    // borrow checker, please
                     let cp = Rc::clone(&this);
                     let parent = &cp.borrow().parent;
 
-                    if parent.is_none() {
-                        std::mem::swap(&mut self.current_node, &mut None);
-                        break;
-                    } else {
-                        let b = Rc::clone(&this);
-                        let x = b.borrow().parent_sure();
-                        let a = Rc::clone(&this);
-
-                        if a.borrow().key.cmp(&x.borrow().key) == Ordering::Greater {
-                            this = Rc::clone(&x);
-                            continue;
-                        } else {
-                            let _ = std::mem::replace(&mut self.current_node, Some(Rc::clone(&x)));
+                    match &parent {
+                        None => {
+                            std::mem::swap(&mut self.current_node, &mut None);
                             break;
+                        },
+                        Some(p) => {
+                            if this.borrow().key.cmp(&p.borrow().key) == Ordering::Greater {
+                                this = Rc::clone(&p);
+                                continue;
+                            } else {
+                                std::mem::swap(&mut self.current_node, &mut Some(Rc::clone(&p)));
+                                break;
+                            }
                         }
                     }
                 }
-
-                // else check if we have parent
-//                match parent {
-//                    // If so - go up while we are in right-childs branch -> first parent of left-child relation is next node
-//                    Some(p) => {
-//
-//                        let cpble = &curr.key;
-//                        let mut cmp_ref = Rc::clone(p);
-//
-//                        while cmp_ref.borrow().parent.is_some()  {
-//                            // If childs key > parent key - it was right child -> go up
-//                            if cpble.cmp(&cmp_ref.borrow().key) == Ordering::Greater {
-//                                let x = &cmp_ref.borrow().parent_sure();
-//                                cmp_ref = Rc::clone(x);
-//                                continue;
-//                            } else {
-//
-//                                // Else childs key < parent key - next node is parent
-//                                let _ = std::mem::replace(&mut self.current_node, Some(Rc::clone(&cmp_ref)));
-//                                return;
-//                            }
-//                        }
-//
-//
-//                        // Here we come in case we were in root from its right branch
-//                        std::mem::swap(&mut self.current_node, &mut None);
-//                    }
-//                    // otherwise we dont have right child and parent -> we are root
-//                    None => {
-//                        // We are in root
-//                        std::mem::swap(&mut self.current_node, &mut None);
-//                    },
-//                }
             }
         }
     }
