@@ -143,11 +143,9 @@ impl<K: Ord, V> TreeIterator<K, V> {
             Some(lq) => {
                 // If so, get lowest from right child
                 self.current_node =  Some(lq.borrow().least_node_r(lq));
-                println!("We have right child");
             }
             None => {
 //                let parent = &curr.parent;
-                println!("We dont have right child");
 
                 let mut this = Rc::clone(&ref_curr);
 
@@ -177,7 +175,6 @@ impl<K: Ord, V> TreeIterator<K, V> {
 //                match parent {
 //                    // If so - go up while we are in right-childs branch -> first parent of left-child relation is next node
 //                    Some(p) => {
-//                        println!("We have parent");
 //
 //                        let cpble = &curr.key;
 //                        let mut cmp_ref = Rc::clone(p);
@@ -185,12 +182,10 @@ impl<K: Ord, V> TreeIterator<K, V> {
 //                        while cmp_ref.borrow().parent.is_some()  {
 //                            // If childs key > parent key - it was right child -> go up
 //                            if cpble.cmp(&cmp_ref.borrow().key) == Ordering::Greater {
-//                                println!("1");
 //                                let x = &cmp_ref.borrow().parent_sure();
 //                                cmp_ref = Rc::clone(x);
 //                                continue;
 //                            } else {
-//                                println!("2");
 //
 //                                // Else childs key < parent key - next node is parent
 //                                let _ = std::mem::replace(&mut self.current_node, Some(Rc::clone(&cmp_ref)));
@@ -198,7 +193,6 @@ impl<K: Ord, V> TreeIterator<K, V> {
 //                            }
 //                        }
 //
-//                        println!("I am root now from 1");
 //
 //                        // Here we come in case we were in root from its right branch
 //                        std::mem::swap(&mut self.current_node, &mut None);
@@ -206,7 +200,6 @@ impl<K: Ord, V> TreeIterator<K, V> {
 //                    // otherwise we dont have right child and parent -> we are root
 //                    None => {
 //                        // We are in root
-//                        println!("We dont have parent");
 //                        std::mem::swap(&mut self.current_node, &mut None);
 //                    },
 //                }
