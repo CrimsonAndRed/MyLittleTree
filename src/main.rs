@@ -108,8 +108,8 @@ impl<K: Ord, V> Tree<K, V> {
         self.size == 0
     }
 
-    fn iter(self) -> TreeIterator<K, V> {
-        TreeIterator {
+    fn iter_node(self) -> TreeNodeIterator<K, V> {
+        TreeNodeIterator {
             current_node: self.least_node(),
         }
     }
@@ -142,11 +142,11 @@ impl<K: Ord, V> Tree<K, V> {
 }
 
 // Iteration
-struct TreeIterator<K: Ord, V> {
+struct TreeNodeIterator<K: Ord, V> {
     current_node: Option<Rc<RefCell<TreeNode<K, V>>>>,
 }
 
-impl<K: Ord, V> TreeIterator<K, V> {
+impl<K: Ord, V> TreeNodeIterator<K, V> {
     fn find_next(&mut self) {
         // this was called so current_node is not None
 
@@ -194,7 +194,7 @@ impl<K: Ord, V> TreeIterator<K, V> {
     }
 }
 
-impl<K: Ord, V> Iterator for TreeIterator<K, V> {
+impl<K: Ord, V> Iterator for TreeNodeIterator<K, V> {
     type Item = Rc<RefCell<TreeNode<K, V>>>;
 
     // This iterator is a little bit odd
@@ -215,10 +215,10 @@ impl<K: Ord, V> Iterator for TreeIterator<K, V> {
 
 impl<K: Ord, V> IntoIterator for Tree<K, V> {
     type Item = Rc<RefCell<TreeNode<K, V>>>;
-    type IntoIter = TreeIterator<K, V>;
+    type IntoIter = TreeNodeIterator<K, V>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.iter()
+        self.iter_node()
     }
 }
 
