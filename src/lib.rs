@@ -3,56 +3,20 @@ use std::rc::Rc;
 
 use std::cmp::{Ord, Ordering};
 
-fn main() {
-    let mut tree: Tree<i64, i64> = Tree::new();
-    assert_eq!(tree.size, 0);
-    assert_eq!(tree.insert(0, 0), None);
-    assert_eq!(tree.insert(0, 0), Some(0));
-    assert_eq!(tree.insert(1, 23), None);
-    assert_eq!(tree.insert(1, 20), Some(23));
-    assert_eq!(tree.insert(-12, -1), None);
-
-    assert!(tree.find_node(&2).is_none());
-    assert_eq!(tree.find_node(&0).unwrap().borrow().value, 0);
-
-    let mut paper_tree: Tree<i64, i64> = Tree::new();
-    paper_tree.insert(100, 100);
-    paper_tree.insert(50, 50);
-
-    let x1 = paper_tree.find_node(&101);
-    assert!(x1.is_none());
-    paper_tree.insert(10, 10);
-    paper_tree.insert(70, 70);
-    paper_tree.insert(60, 60);
-    paper_tree.insert(99, 99);
-
-    paper_tree.insert(200, 200);
-    paper_tree.insert(115, 115);
-    paper_tree.insert(300, 300);
-
-    println!("{}", paper_tree.least_node().unwrap().borrow().key);
-    //    println!("{}", tree.least_node().unwrap().borrow().key);
-
-    paper_tree.clear();
-    for x in paper_tree {
-        println!("{} -> {}", x.borrow().key, x.borrow().value);
-    }
-}
-
-struct Tree<K: Ord, V> {
+pub struct Tree<K: Ord, V> {
     size: usize,
     root: Option<Rc<RefCell<TreeNode<K, V>>>>,
 }
 
 impl<K: Ord, V> Tree<K, V> {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Tree {
             size: 0,
             root: None,
         }
     }
 
-    fn insert(&mut self, key: K, value: V) -> Option<V> {
+    pub fn insert(&mut self, key: K, value: V) -> Option<V> {
         let new_node = TreeNode::new(key, value);
 
         match &self.root {
@@ -96,25 +60,25 @@ impl<K: Ord, V> Tree<K, V> {
         }
     }
 
-    fn clear(&mut self) {
+    pub fn clear(&mut self) {
         *self = Self::new();
     }
 
-    fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.size
     }
 
-    fn is_empty(&self) -> bool {
+    pub fn is_empty(&self) -> bool {
         self.size == 0
     }
 
-    fn iter_node(self) -> TreeNodeIterator<K, V> {
+    pub fn iter_node(self) -> TreeNodeIterator<K, V> {
         TreeNodeIterator {
             current_node: self.least_node(),
         }
     }
 
-    fn find_node(&self, f: &K) -> Option<Rc<RefCell<TreeNode<K, V>>>> {
+    pub fn find_node(&self, f: &K) -> Option<Rc<RefCell<TreeNode<K, V>>>> {
         if self.root.is_none() {
             return None;
         }
@@ -123,7 +87,7 @@ impl<K: Ord, V> Tree<K, V> {
         root.borrow().find_node_r(Rc::clone(root), f)
     }
 
-    fn least_node(&self) -> Option<Rc<RefCell<TreeNode<K, V>>>> {
+    pub fn least_node(&self) -> Option<Rc<RefCell<TreeNode<K, V>>>> {
         match &self.root {
             None => None,
             Some(root) => {
@@ -142,7 +106,7 @@ impl<K: Ord, V> Tree<K, V> {
 }
 
 // Iteration
-struct TreeNodeIterator<K: Ord, V> {
+pub struct TreeNodeIterator<K: Ord, V> {
     current_node: Option<Rc<RefCell<TreeNode<K, V>>>>,
 }
 
@@ -222,7 +186,7 @@ impl<K: Ord, V> IntoIterator for Tree<K, V> {
     }
 }
 
-struct TreeNode<K: Ord, V> {
+pub struct TreeNode<K: Ord, V> {
     key: K,
     value: V,
     parent: Option<Rc<RefCell<TreeNode<K, V>>>>,
@@ -277,4 +241,48 @@ impl<K: Ord, V> TreeNode<K, V> {
             Some(lq) => lq.borrow().least_node_r(lq),
         }
     }
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn empty_tree() {
+	    let mut tree: Tree<i64, i64> = Tree::new();
+	    assert_eq!(tree.size, 0);
+	}
+
+	#[test]
+	fn insert_find() {
+	    let mut tree: Tree<i64, i64> = Tree::new();
+		assert_eq!(tree.insert(0, 0), None);
+	    assert_eq!(tree.insert(0, 0), Some(0));
+	    
+	    assert_eq!(tree.find_node(&0).unwrap().borrow().value, 0);
+	}
+
+	#[test]
+	fn iterate() {
+	    let mut paper_tree: Tree<i64, i64> = Tree::new();
+	    paper_tree.insert(100, 100);
+	    paper_tree.insert(50, 50);
+	    paper_tree.insert(10, 10);
+	    paper_tree.insert(70, 70);
+	    paper_tree.insert(60, 60);
+	    paper_tree.insert(99, 99);
+
+	    paper_tree.insert(200, 200);
+	    paper_tree.insert(115, 115);
+	    paper_tree.insert(300, 300);
+
+	    let ppr_tree_size = paper_tree.size;
+	    let mut i = 0;
+	    for _ in paper_tree {
+	        i += 1;
+	    }
+
+	    assert_eq!(ppr_tree_size, i);
+	    assert_eq!(ppr_tree_size, 9);
+	}
 }
