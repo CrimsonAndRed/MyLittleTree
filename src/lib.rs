@@ -103,6 +103,174 @@ impl<K: Ord, V> Tree<K, V> {
             }
         }
     }
+
+    pub fn delete(&mut self, key: &K) -> Option<Rc<RefCell<TreeNode<K, V>>>> {
+
+    	let node = self.find_node(key);
+    	match node {
+            None => None,
+            Some(ref node) => {
+                let tree_node = node.borrow();
+
+                let parent = &tree_node.parent;
+                if parent.is_none() {
+                    // deleting root
+                    match (tree_node.left.is_some(), tree_node.right.is_some()) {
+                        (false, false) => {
+                            self.root = None;
+                        },
+                        (true, false) => {
+                            let new_root = tree_node.left_sure();
+                            new_root.borrow_mut().parent = None;
+                            self.root = Some(Rc::clone(&new_root));
+                        },
+                        (false, true) => {
+                            let new_root = tree_node.right_sure();
+                            new_root.borrow_mut().parent = None;
+                            self.root = Some(Rc::clone(&new_root));
+                        },
+                        // Both exists, lets be lazy and go once right then full left 
+                        // (pretty sure this will disbalance tree even more, but no one cares)
+                        (true, true) => {
+                            let shift_ref = tree_node.left.as_ref().unwrap();
+                            let mut shift = shift_ref.borrow_mut();
+
+                            let new_root_ref = tree_node.right_sure();
+                            let mut new_root = new_root_ref.borrow_mut();
+                            
+                            let new_parent_ref = new_root.least_node_r(&new_root_ref);
+
+                            // Now things are getting complicated
+                            // It is possible, that new_parent is the same as new_root
+                            // and we can not borrow it twice
+                            if Rc::ptr_eq(&new_root_ref, &new_parent_ref) {
+                                self.root = Some(Rc::clone(&new_root_ref));
+                                new_root.parent = None;
+
+                                shift.parent = Some(Rc::clone(&new_parent_ref));
+                                new_root.left = Some(Rc::clone(shift_ref));
+                            } else {
+                                let mut new_parent = new_parent_ref.borrow_mut(); 
+
+                                self.root = Some(Rc::clone(&new_root_ref));
+                                new_root.parent = None;
+
+                                shift.parent = Some(Rc::clone(&new_parent_ref));
+                                new_parent.left = Some(Rc::clone(shift_ref));
+                            }
+                        }
+                    }
+                } else {
+                    let parent_ref = tree_node.parent_sure();
+                    let mut parent = parent_ref.borrow_mut();
+
+                    // messy but i still like it
+                    match (tree_node.left.is_some(), tree_node.right.is_some(), tree_node.key.cmp(&parent.key)) {
+                        (_, _, Ordering::Equal) => {
+                            unreachable!("Parent has same key with its child. Shount not have happened");
+                        },
+                        (false, false, Ordering::Less) => {
+                            parent.left = None;
+                        },
+                        (false, false, Ordering::Greater) => {
+                            parent.right = None;
+                        },
+                        (true, false, Ordering::Less) => {
+                            let shift_ref = tree_node.left.as_ref().unwrap();
+                            let mut shift = shift_ref.borrow_mut();
+
+                            shift.parent = Some(Rc::clone(&parent_ref));
+                            parent.left = Some(Rc::clone(shift_ref));
+                        },
+                        (true, false, Ordering::Greater) => { 
+                            let shift_ref = tree_node.left.as_ref().unwrap();
+                            let mut shift = shift_ref.borrow_mut();
+
+                            shift.parent = Some(Rc::clone(&parent_ref));
+                            parent.right = Some(Rc::clone(shift_ref));
+                        },
+                        (false, true, Ordering::Less) => { 
+                            let shift_ref = tree_node.right.as_ref().unwrap();
+                            let mut shift = shift_ref.borrow_mut();
+
+                            shift.parent = Some(Rc::clone(&parent_ref));
+                            parent.left = Some(Rc::clone(shift_ref));
+                        },
+                        (false, true, Ordering::Greater) => { 
+                            let shift_ref = tree_node.right.as_ref().unwrap();
+                            let mut shift = shift_ref.borrow_mut();
+
+                            shift.parent = Some(Rc::clone(&parent_ref));
+                            parent.right = Some(Rc::clone(shift_ref));
+                        },
+                        // Both exists, lets be lazy and go once right then full left 
+                        // (pretty sure this will disbalance tree even more, but no one cares)
+                        (true, true, Ordering::Less) => { 
+                            let shift_ref = &tree_node.left_sure();
+                            let mut shift = shift_ref.borrow_mut();
+                            
+                            let shifter_ref = tree_node.right_sure();
+                            let mut shifter = shifter_ref.borrow_mut();
+
+                            let new_parent_ref = shifter.least_node_r(&shifter_ref);
+
+                            // Now things are getting complicated
+                            // It is possible, that new_parent is the same as new_root
+                            // and we can not borrow it twice
+                            if Rc::ptr_eq(&shifter_ref, &new_parent_ref) {
+                                
+                                shifter.left = Some(Rc::clone(shift_ref));
+                                shift.parent = Some(Rc::clone(&new_parent_ref));
+
+                                parent.left = Some(Rc::clone(&shifter_ref));
+                                shifter.parent = Some(Rc::clone(&parent_ref));
+                            } else {
+                                let mut new_parent = new_parent_ref.borrow_mut(); 
+
+                                new_parent.left = Some(Rc::clone(shift_ref));
+                                shift.parent = Some(Rc::clone(&new_parent_ref));
+
+                                parent.left = Some(Rc::clone(&shifter_ref));
+                                shifter.parent = Some(Rc::clone(&parent_ref));
+                            }
+                        },
+                        (true, true, Ordering::Greater) => { 
+                            let shift_ref = &tree_node.left_sure();
+                            let mut shift = shift_ref.borrow_mut();
+
+                            let shifter_ref = tree_node.right_sure();
+                            let mut shifter = shifter_ref.borrow_mut();
+
+                            let new_parent_ref = shifter.least_node_r(&shifter_ref);
+
+                            // Now things are getting complicated
+                            // It is possible, that new_parent is the same as new_root
+                            // and we can not borrow it twice
+                            if Rc::ptr_eq(&shifter_ref, &new_parent_ref) {
+                                
+                                shifter.left = Some(Rc::clone(shift_ref));
+                                shift.parent = Some(Rc::clone(&new_parent_ref));
+
+                                parent.right = Some(Rc::clone(&shifter_ref));
+                                shifter.parent = Some(Rc::clone(&parent_ref));
+                            } else {
+                                let mut new_parent = new_parent_ref.borrow_mut(); 
+
+                                new_parent.left = Some(Rc::clone(shift_ref));
+                                shift.parent = Some(Rc::clone(&new_parent_ref));
+
+                                parent.right = Some(Rc::clone(&shifter_ref));
+                                shifter.parent = Some(Rc::clone(&parent_ref));
+                            }
+                        },
+                    }
+                }
+
+                self.size -= 1;
+                Some(Rc::clone(node))
+            }
+        }
+    }
 }
 
 // Iteration
@@ -222,16 +390,22 @@ impl<K: Ord, V> TreeNode<K, V> {
         myself: Rc<RefCell<TreeNode<K, V>>>,
         f: &K,
     ) -> Option<Rc<RefCell<TreeNode<K, V>>>> {
-        match &self.key.cmp(f) {
-            Ordering::Greater => match &self.right {
-                Some(lq) => lq.borrow().find_node_r(Rc::clone(lq), f),
-                None => None,
+        match f.cmp(&self.key) {
+            Ordering::Greater => {
+                match &self.right {
+                    Some(lq) => lq.borrow().find_node_r(Rc::clone(lq), f),
+                    None => None,
+                }
             },
-            Ordering::Less => match &self.left {
-                Some(lq) => lq.borrow().find_node_r(Rc::clone(lq), f),
-                None => None,
+            Ordering::Less => {
+                match &self.left {
+                    Some(lq) => lq.borrow().find_node_r(Rc::clone(lq), f),
+                    None => None,
+                }
             },
-            Ordering::Equal => Some(myself),
+            Ordering::Equal => {
+                Some(myself)
+            },
         }
     }
 
@@ -249,7 +423,7 @@ mod tests {
 
 	#[test]
 	fn empty_tree() {
-	    let mut tree: Tree<i64, i64> = Tree::new();
+	    let tree: Tree<i64, i64> = Tree::new();
 	    assert_eq!(tree.size, 0);
 	}
 
@@ -277,12 +451,210 @@ mod tests {
 	    paper_tree.insert(300, 300);
 
 	    let ppr_tree_size = paper_tree.size;
-	    let mut i = 0;
-	    for _ in paper_tree {
-	        i += 1;
-	    }
+	    let i = paper_tree.into_iter().count();
 
 	    assert_eq!(ppr_tree_size, i);
 	    assert_eq!(ppr_tree_size, 9);
+	}
+
+	#[test]
+	fn delete_find() {
+	    let mut tree: Tree<i64, i64> = Tree::new();
+		assert_eq!(tree.insert(0, 0), None);
+	    assert!(tree.delete(&0).is_some());
+		assert!(tree.delete(&0).is_none());
+	}
+
+    #[test]
+    fn delete_root_both_same() {
+		let mut paper_tree: Tree<i64, i64> = Tree::new();
+	    paper_tree.insert(100, 100);
+	    paper_tree.insert(50, 50);
+	
+	    paper_tree.insert(200, 200);
+	
+        let deleted = paper_tree.delete(&100);
+        let tree_cnt = paper_tree.size;
+        let cnt = paper_tree.into_iter().count();
+
+        assert_eq!(true, deleted.is_some());
+        assert_eq!(cnt, tree_cnt);
+    }
+
+    #[test]
+    fn delete_root_both_diff() {
+		let mut paper_tree: Tree<i64, i64> = Tree::new();
+	    paper_tree.insert(100, 100);
+	    paper_tree.insert(50, 50);
+	
+	    paper_tree.insert(200, 200);
+        paper_tree.insert(150, 150);
+	
+        let deleted = paper_tree.delete(&100);
+	    let tree_cnt = paper_tree.size;
+        let cnt = paper_tree.into_iter().count();
+        assert_eq!(true, deleted.is_some());
+        assert_eq!(cnt, tree_cnt);
+    }
+
+    #[test]
+    fn delete_root_l() {
+		let mut paper_tree: Tree<i64, i64> = Tree::new();
+	    paper_tree.insert(100, 100);
+	    paper_tree.insert(50, 50);
+	
+        let deleted = paper_tree.delete(&100);
+	    let tree_cnt = paper_tree.size;
+        let cnt = paper_tree.into_iter().count();
+        assert_eq!(true, deleted.is_some());
+        assert_eq!(cnt, tree_cnt);
+    }
+
+    #[test]
+    fn delete_root_r() {
+		let mut paper_tree: Tree<i64, i64> = Tree::new();
+	    paper_tree.insert(100, 100);
+	    paper_tree.insert(150, 150);
+	
+        let deleted = paper_tree.delete(&100);
+	    let tree_cnt = paper_tree.size;
+        let cnt = paper_tree.into_iter().count();
+        assert_eq!(true, deleted.is_some());
+        assert_eq!(cnt, tree_cnt);
+    }
+    
+    #[test]
+    fn delete_root_none() {
+		let mut paper_tree: Tree<i64, i64> = Tree::new();
+	    paper_tree.insert(100, 100);
+	
+        let deleted = paper_tree.delete(&100);
+	    let tree_cnt = paper_tree.size;
+        let cnt = paper_tree.into_iter().count();
+        assert_eq!(true, deleted.is_some());
+        assert_eq!(cnt, tree_cnt);
+    }
+
+    
+    #[test]
+    fn delete_miss() {
+		let mut paper_tree: Tree<i64, i64> = Tree::new();
+	    paper_tree.insert(100, 100);
+	
+        let deleted = paper_tree.delete(&1000);
+	    let tree_cnt = paper_tree.size;
+        let cnt = paper_tree.into_iter().count();
+        assert_eq!(true, deleted.is_none());
+        assert_eq!(cnt, tree_cnt);
+    }
+
+    #[test]
+	fn delete_node_none() {
+	    let mut paper_tree: Tree<i64, i64> = Tree::new();
+	    paper_tree.insert(100, 100);
+	    paper_tree.insert(50, 50);
+	    
+        let deleted = paper_tree.delete(&50);
+	    let tree_cnt = paper_tree.size;
+        let cnt = paper_tree.into_iter().count();
+        
+        assert_eq!(true, deleted.is_some());
+        assert_eq!(cnt, tree_cnt);
+	}
+
+    #[test]
+	fn delete_node_l() {
+	    let mut paper_tree: Tree<i64, i64> = Tree::new();
+	    paper_tree.insert(100, 100);
+	    paper_tree.insert(50, 50);
+        paper_tree.insert(10, 10);
+	    
+        let deleted = paper_tree.delete(&50);
+	    let tree_cnt = paper_tree.size;
+        let cnt = paper_tree.into_iter().count();
+        
+        assert_eq!(true, deleted.is_some());
+        assert_eq!(cnt, tree_cnt);
+	}
+
+    #[test]
+	fn delete_node_r() {
+	    let mut paper_tree: Tree<i64, i64> = Tree::new();
+	    paper_tree.insert(100, 100);
+	    paper_tree.insert(50, 50);
+        paper_tree.insert(70, 70);
+	    
+        let deleted = paper_tree.delete(&50);
+	    let tree_cnt = paper_tree.size;
+        let cnt = paper_tree.into_iter().count();
+        
+        assert_eq!(true, deleted.is_some());
+        assert_eq!(cnt, tree_cnt);
+	}
+
+    #[test]
+	fn delete_node_both_l_same() {
+	    let mut paper_tree: Tree<i64, i64> = Tree::new();
+	    paper_tree.insert(100, 100);
+	    paper_tree.insert(50, 50);
+        paper_tree.insert(10, 10);
+        paper_tree.insert(70, 70);
+	    
+        let deleted = paper_tree.delete(&50);
+	    let tree_cnt = paper_tree.size;
+        let cnt = paper_tree.into_iter().count();
+        
+        assert_eq!(true, deleted.is_some());
+        assert_eq!(cnt, tree_cnt);
+	}
+
+    #[test]
+	fn delete_node_both_r_same() {
+	    let mut paper_tree: Tree<i64, i64> = Tree::new();
+	    paper_tree.insert(100, 100);
+	    paper_tree.insert(150, 150);
+        paper_tree.insert(110, 110);
+        paper_tree.insert(170, 170);
+	    
+        let deleted = paper_tree.delete(&150);
+	    let tree_cnt = paper_tree.size;
+        let cnt = paper_tree.into_iter().count();
+        
+        assert_eq!(true, deleted.is_some());
+        assert_eq!(cnt, tree_cnt);
+	}
+
+    #[test]
+	fn delete_node_both_l_diff() {
+	    let mut paper_tree: Tree<i64, i64> = Tree::new();
+	    paper_tree.insert(100, 100);
+	    paper_tree.insert(50, 50);
+        paper_tree.insert(10, 10);
+        paper_tree.insert(70, 70);
+        paper_tree.insert(60, 60);
+	    
+        let deleted = paper_tree.delete(&50);
+	    let tree_cnt = paper_tree.size;
+        let cnt = paper_tree.into_iter().count();
+        
+        assert_eq!(true, deleted.is_some());
+        assert_eq!(cnt, tree_cnt);
+	}
+
+    #[test]
+	fn delete_node_both_r_diff() {
+	    let mut paper_tree: Tree<i64, i64> = Tree::new();
+	    paper_tree.insert(100, 100);
+	    paper_tree.insert(150, 150);
+        paper_tree.insert(110, 110);
+        paper_tree.insert(170, 170);
+        paper_tree.insert(160, 160);
+	    
+        let deleted = paper_tree.delete(&150);
+	    let tree_cnt = paper_tree.size;
+        let cnt = paper_tree.into_iter().count();
+        
+        assert_eq!(true, deleted.is_some());
+        assert_eq!(cnt, tree_cnt);
 	}
 }
