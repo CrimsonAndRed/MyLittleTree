@@ -3,12 +3,90 @@ use std::rc::Rc;
 
 use std::cmp::{Ord, Ordering};
 
+/// My Little Tree implementation
+/// This tree is binary, bidirctional, unbalanced, based on Rc<RefCell<...>> combination.
 pub struct Tree<K: Ord, V> {
+    /// Size of tree.
+    /// Added just to imitate rust native BTree.
     size: usize,
+
+    /// Root element of Tree.
     root: Option<Rc<RefCell<TreeNode<K, V>>>>,
 }
 
+/// This is node of My Little Tree.
+/// Contains parent reference as well.
+pub struct TreeNode<K: Ord, V> {
+    key: K,
+    value: V,
+    parent: Option<Rc<RefCell<TreeNode<K, V>>>>,
+    right: Option<Rc<RefCell<TreeNode<K, V>>>>,
+    left: Option<Rc<RefCell<TreeNode<K, V>>>>,
+}
+
+/// Some utilities and recusive funtions.
+impl<K: Ord, V> TreeNode<K, V> {
+    /// Returns node with given key-value pair and no references.
+    fn new(key: K, value: V) -> Self {
+        TreeNode {
+            key: key,
+            value: value,
+            parent: None,
+            left: None,
+            right: None,
+        }
+    }
+
+    /// Returns left child of node.
+    /// Might panic if left node is None.
+    fn left_sure(&self) -> Rc<RefCell<TreeNode<K, V>>> {
+        Rc::clone(self.left.as_ref().unwrap())
+    }
+
+    /// Returns right child of node.
+    /// Might panic if right node is None.
+    fn right_sure(&self) -> Rc<RefCell<TreeNode<K, V>>> {
+        Rc::clone(self.right.as_ref().unwrap())
+    }
+
+    /// Returns parent of node.
+    /// Might panic parent node is None.
+    fn parent_sure(&self) -> Rc<RefCell<TreeNode<K, V>>> {
+        Rc::clone(self.parent.as_ref().unwrap())
+    }
+
+    /// Recusive search for node by given key.
+    /// It is convinient to keep reference to itself as argument.
+    fn find_node_r(
+        &self,
+        myself: Rc<RefCell<TreeNode<K, V>>>,
+        f: &K,
+    ) -> Option<Rc<RefCell<TreeNode<K, V>>>> {
+        match f.cmp(&self.key) {
+            Ordering::Greater => match &self.right {
+                Some(lq) => lq.borrow().find_node_r(Rc::clone(lq), f),
+                None => None,
+            },
+            Ordering::Less => match &self.left {
+                Some(lq) => lq.borrow().find_node_r(Rc::clone(lq), f),
+                None => None,
+            },
+            Ordering::Equal => Some(myself),
+        }
+    }
+
+    /// Recursive search for node with least key.
+    /// Iteration is hard in rust or i am too dumb.
+    fn least_node_r(&self, myself: &Rc<RefCell<TreeNode<K, V>>>) -> Rc<RefCell<TreeNode<K, V>>> {
+        match &self.left {
+            None => Rc::clone(myself),
+            Some(lq) => lq.borrow().least_node_r(lq),
+        }
+    }
+}
+
 impl<K: Ord, V> Tree<K, V> {
+    /// Creates empty tree.
     pub fn new() -> Self {
         Tree {
             size: 0,
@@ -16,6 +94,8 @@ impl<K: Ord, V> Tree<K, V> {
         }
     }
 
+    /// Inserts key-value into tree.
+    /// Returns optional value of replaced value, if there was any.
     pub fn insert(&mut self, key: K, value: V) -> Option<V> {
         let new_node = TreeNode::new(key, value);
 
@@ -60,24 +140,30 @@ impl<K: Ord, V> Tree<K, V> {
         }
     }
 
+    /// Clears map by replacing with new tree.
     pub fn clear(&mut self) {
         *self = Self::new();
     }
 
+    /// Returns number of nodes in tree.
     pub fn len(&self) -> usize {
         self.size
     }
 
+    /// Checks if tree has no nodes.
     pub fn is_empty(&self) -> bool {
         self.size == 0
     }
 
+    /// Returns iterator over nodes in tree.
+    /// Iteration order from least to greatest element.
     pub fn iter_node(self) -> TreeNodeIterator<K, V> {
         TreeNodeIterator {
             current_node: self.least_node(),
         }
     }
 
+    /// Tries to find node by given key.
     pub fn find_node(&self, f: &K) -> Option<Rc<RefCell<TreeNode<K, V>>>> {
         if self.root.is_none() {
             return None;
@@ -87,6 +173,7 @@ impl<K: Ord, V> Tree<K, V> {
         root.borrow().find_node_r(Rc::clone(root), f)
     }
 
+    /// Returns node with least key in tree.
     pub fn least_node(&self) -> Option<Rc<RefCell<TreeNode<K, V>>>> {
         match &self.root {
             None => None,
@@ -104,6 +191,8 @@ impl<K: Ord, V> Tree<K, V> {
         }
     }
 
+    /// Tries to delete node with given key.
+    /// Returns deleted node if there was any.
     pub fn delete(&mut self, key: &K) -> Option<Rc<RefCell<TreeNode<K, V>>>> {
         let node = self.find_node(key);
         match node {
@@ -171,7 +260,7 @@ impl<K: Ord, V> Tree<K, V> {
                     ) {
                         (_, _, Ordering::Equal) => {
                             unreachable!(
-                                "Parent has same key with its child. Shount not have happened"
+                                "Parent has same key with its child. Should not not have happened"
                             );
                         }
                         (false, false, Ordering::Less) => {
@@ -277,7 +366,13 @@ impl<K: Ord, V> Tree<K, V> {
 }
 
 // Iteration
+
+/// Iterator over tree nodes.
+/// This iterator is a bit odd - on construct it finds least element.
+/// Then on each iteration it commputes new current node, but returns old one.
 pub struct TreeNodeIterator<K: Ord, V> {
+    /// This current node starts from least node.
+    /// Once its value is None - iteration was over.
     current_node: Option<Rc<RefCell<TreeNode<K, V>>>>,
 }
 
@@ -348,69 +443,14 @@ impl<K: Ord, V> Iterator for TreeNodeIterator<K, V> {
     }
 }
 
+/// This iterator consumes Tree.
+/// So it is not really convinient.
 impl<K: Ord, V> IntoIterator for Tree<K, V> {
     type Item = Rc<RefCell<TreeNode<K, V>>>;
     type IntoIter = TreeNodeIterator<K, V>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter_node()
-    }
-}
-
-pub struct TreeNode<K: Ord, V> {
-    key: K,
-    value: V,
-    parent: Option<Rc<RefCell<TreeNode<K, V>>>>,
-    right: Option<Rc<RefCell<TreeNode<K, V>>>>,
-    left: Option<Rc<RefCell<TreeNode<K, V>>>>,
-}
-
-impl<K: Ord, V> TreeNode<K, V> {
-    fn new(key: K, value: V) -> Self {
-        TreeNode {
-            key: key,
-            value: value,
-            parent: None,
-            left: None,
-            right: None,
-        }
-    }
-
-    fn left_sure(&self) -> Rc<RefCell<TreeNode<K, V>>> {
-        Rc::clone(self.left.as_ref().unwrap())
-    }
-
-    fn right_sure(&self) -> Rc<RefCell<TreeNode<K, V>>> {
-        Rc::clone(self.right.as_ref().unwrap())
-    }
-
-    fn parent_sure(&self) -> Rc<RefCell<TreeNode<K, V>>> {
-        Rc::clone(self.parent.as_ref().unwrap())
-    }
-
-    fn find_node_r(
-        &self,
-        myself: Rc<RefCell<TreeNode<K, V>>>,
-        f: &K,
-    ) -> Option<Rc<RefCell<TreeNode<K, V>>>> {
-        match f.cmp(&self.key) {
-            Ordering::Greater => match &self.right {
-                Some(lq) => lq.borrow().find_node_r(Rc::clone(lq), f),
-                None => None,
-            },
-            Ordering::Less => match &self.left {
-                Some(lq) => lq.borrow().find_node_r(Rc::clone(lq), f),
-                None => None,
-            },
-            Ordering::Equal => Some(myself),
-        }
-    }
-
-    fn least_node_r(&self, myself: &Rc<RefCell<TreeNode<K, V>>>) -> Rc<RefCell<TreeNode<K, V>>> {
-        match &self.left {
-            None => Rc::clone(myself),
-            Some(lq) => lq.borrow().least_node_r(lq),
-        }
     }
 }
 
